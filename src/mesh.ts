@@ -2,7 +2,7 @@
  * Mesh
  *
  * @author Takuto Yanagida
- * @version 2024-10-28
+ * @version 2024-11-13
  */
 
 import { Vertex } from './vertex';
@@ -18,8 +18,8 @@ import { Plane } from './plane';
 export class Mesh {
 
 	#vs: Vertex[] = [];
-	#fs: Face[] = [];
 	#es: Edge[] = [];
+	#fs: Face[] = [];
 
 	constructor() {
 	}
@@ -36,12 +36,13 @@ export class Mesh {
 			this.#vs.push(v);
 		}
 		for (const fi of faceIndex) {
-			const faceEdges: Edge[] = [];
+			const faceEs: Edge[] = [];
 			for (const vi of fi) {
-				faceEdges.push(new Edge(this.#vs[vi]));
+				const e = new Edge(this.#vs[vi]);
+				faceEs.push(e);
+				this.#es.push(e);
 			}
-			this.#fs.push(new Face(faceEdges));
-			this.#es.push(...faceEdges);
+			this.#fs.push(new Face(faceEs));
 		}
 		this.#pairEdges(this.#es);
 	}
@@ -53,17 +54,12 @@ export class Mesh {
 	 * @param es - Array of edges in the mesh.
 	 */
 	#pairEdges(es: Edge[]): void {
-		for (let i: number = 0, n: number = es.length; i < n; ++i) {
-			const e0: Edge = es[i];
+		for (const e0 of es) {
 			if (e0.pair !== null) {
 				continue;
 			}
-			for (let j: number = 0; j < n; ++j) {
-				if (i === j) {
-					continue;
-				}
-				const e1: Edge = es[j];
-				if (e1.pair !== null) {
+			for (const e1 of es) {
+				if (e0 === e1 || e1.pair !== null) {
 					continue;
 				}
 				 // Matching edge in opposite direction
@@ -99,43 +95,38 @@ export class Mesh {
 
 			// If there are three or more vertices on the reference side, create a new face
 			if (newFaceVs.length > 2) {
-				const faceEdges: Edge[] = [];
+				const faceEs: Edge[] = [];
 				for (const v of newFaceVs) {
 					if (!newVs.includes(v)) {
 						newVs.push(v);
 					}
-					faceEdges.push(new Edge(v));
+					const e = new Edge(v);
+					faceEs.push(e);
+					newEs.push(e);
 				}
-				newFs.push(new Face(faceEdges));
-				newEs.push(...faceEdges);
+				newFs.push(new Face(faceEs));
 			}
 		}
 		this.#pairEdges(newEs);
 
-		const unpairedEdges: Edge[] = [];
-		for (const e of newEs) {
-			if (e.pair === null) unpairedEdges.push(e);
-		}
+		const firstUnpairedEdge: Edge | undefined = newEs.find(e => e.pair === null);
 
 		// Handle unpaired edges to form a closed loop, creating a new face
-		if (unpairedEdges.length > 0) {
-			const faceEdges: Edge[] = [];
-			let he: Edge = unpairedEdges[0];
+		if (firstUnpairedEdge) {
+			const faceEs: Edge[] = [];
+			let he: Edge = firstUnpairedEdge;
 			do {
-				let next: Edge = he.next.pair.next;
-				while (!unpairedEdges.includes(next)) {
+				let next: Edge = (he.next.pair as Edge).next;
+				while (next.pair !== null) {
 					next = next.pair.next;
 				}
 				const nhe: Edge = new Edge(next.getBegin());
-				faceEdges.push(nhe);
-				nhe.pair = he;
-				he.pair = nhe;
-				he = next;
-			} while (he !== unpairedEdges[0]);
-			faceEdges.reverse();
+				faceEs.push(nhe);
+			} while (he !== firstUnpairedEdge);
 
-			newFs.push(new Face(faceEdges));
-			newEs.push(...faceEdges);
+			faceEs.reverse();
+			newFs.push(new Face(faceEs));
+			newEs.push(...faceEs);
 		}
 		this.#vs = newVs;
 		this.#fs = newFs;
@@ -169,43 +160,40 @@ export class Mesh {
 
 			// Create a new face if there are three or more vertices on the reference side
 			if (newFaceVs.length > 2) {
-				const faceEdges: Edge[] = [];
+				const faceEs: Edge[] = [];
 				for (const v of newFaceVs) {
 					if (!ret.#vs.includes(v)) {
 						ret.#vs.push(v);
 					}
-					faceEdges.push(new Edge(v));
+					const e = new Edge(v);
+					faceEs.push(e);
+					ret.#es.push(e);
 				}
-				ret.#fs.push(new Face(faceEdges));
-				ret.#es.push(...faceEdges);
+				ret.#fs.push(new Face(faceEs));
 			}
 		}
 		this.#pairEdges(ret.#es);
 
-		const unpairedEdges: Edge[] = [];
-		for (const e of ret.#es) {
-			if (e.pair === null) {
-				unpairedEdges.push(e);
-			}
-		}
+		const firstUnpairedEdge: Edge | undefined = ret.#es.find(e => e.pair === null);
+
 		// Form a closed loop with unpaired edges to create a new face if possible
-		if (unpairedEdges.length > 0) {
+		if (firstUnpairedEdge) {
 			const faceEdges: Edge[] = [];
-			let he: Edge = unpairedEdges[0];
+			let he: Edge = firstUnpairedEdge;
 			do {
 				if (he.next === null || he.next.pair === null || he.next.pair.next === null) {
 					break;
 				}
-				let next: Edge | null = he.next.pair.next;
-				while (next !== null && !unpairedEdges.includes(next)) {
-					next = next.pair.next;
+				let next: Edge = he.next.pair.next;
+				while (next !== null && next.pair) {
+					next = (next.pair as Edge).next;
 				}
 				const nhe: Edge = new Edge(next.getBegin());
 				faceEdges.push(nhe);
 				nhe.pair = he;
-				he.pair = nhe;
-				he = next;
-			} while (he !== unpairedEdges[0]);
+				he.pair  = nhe;
+				he       = next;
+			} while (he !== firstUnpairedEdge);
 
 			if (faceEdges.length > 2) {
 				return new Face(faceEdges.reverse());

@@ -48,7 +48,7 @@ export class Voronoi {
 			[0, 1, 2, 3], [1, 0, 4, 5], [0, 3, 7, 4],
 			[2, 1, 5, 6], [5, 4, 7, 6], [3, 2, 6, 7]
 		];
-		for (let i: number = 0; i < this.#sites.length; ++i) {
+		for (const _ of this.#sites) {
 			const box: Mesh = new Mesh();
 			box.buildMesh(this.#defaultVs, faceIndex);
 			this.#cells.push(box);
@@ -64,25 +64,17 @@ export class Voronoi {
 	 */
 	#createVoronoi(adjacencyTable: number[][] | null = null, weightTable: number[][] | null = null): void {
 		if (!adjacencyTable && !weightTable) {
-			for (let i: number = 0; i < this.#sites.length; ++i) {
-				const s0: Vertex = this.#sites[i];
-
-				for (let j: number = 0; j < this.#sites.length; ++j) {
-					if (i === j) {
-						continue;
-					}
-					const s1: Vertex = this.#sites[j];
+			for (const [i, s0] of this.#sites.entries()) {
+				for (const s1 of this.#sites) {
+					if (s0 === s1) continue;
 					const org: Vertex = new Vertex((s0.x + s1.x) * 0.5, (s0.y + s1.y) * 0.5, (s0.z + s1.z) * 0.5);
 					const p: Plane = new Plane(org, new Vertex(s0.x - s1.x, s0.y - s1.y, s0.z - s1.z));
 					this.#cells[i].splitMesh(p, s0);
 				}
 			}
 		} else if (adjacencyTable && !weightTable) {
-			for (let i: number = 0; i < this.#sites.length; ++i) {
-				const s0: Vertex = this.#sites[i];
-				const as: number[] = adjacencyTable[i];
-
-				for (let a of as) {
+			for (const [i, s0] of this.#sites.entries()) {
+				for (let a of adjacencyTable[i]) {
 					const s1: Vertex = this.#sites[a];
 					const org: Vertex = new Vertex((s0.x + s1.x) * 0.5, (s0.y + s1.y) * 0.5, (s0.z + s1.z) * 0.5);
 					const p: Plane = new Plane(org, new Vertex(s0.x - s1.x, s0.y - s1.y, s0.z - s1.z));
@@ -90,8 +82,7 @@ export class Voronoi {
 				}
 			}
 		} else if (adjacencyTable && weightTable) {
-			for (let i: number = 0; i < this.#sites.length; ++i) {
-				const s0: Vertex = this.#sites[i];
+			for (const [i, s0] of this.#sites.entries()) {
 				const as: number[] = adjacencyTable[i];
 				const ws: number[] = weightTable[i];
 

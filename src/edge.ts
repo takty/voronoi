@@ -2,7 +2,7 @@
  * Edge
  *
  * @author Takuto Yanagida
- * @version 2024-10-28
+ * @version 2024-11-13
  */
 
 import { Vertex } from './vertex';
@@ -14,10 +14,16 @@ import { Vertex } from './vertex';
 export class Edge {
 
 	#vert: Vertex;
-	/** The paired edge in the opposite direction */
+
+	/**
+	 * The next edge in the same face
+	 */
+	public next!: Edge;
+
+	/**
+	 * The paired edge in the opposite direction
+	 */
 	public pair: Edge | null = null;
-	/** The next edge in the same face */
-	public next: Edge | null = null;
 
 	/**
 	 * Creates an instance of Edge with the specified beginning vertex.
@@ -42,8 +48,8 @@ export class Edge {
 	 *
 	 * @returns The ending vertex of the edge, defined as the starting vertex of the next edge.
 	 */
-	getEnd(): Vertex | null {
-		return this.next ? this.next.#vert : null;
+	getEnd(): Vertex {
+		return this.next!.#vert;
 	}
 
 }

@@ -2,7 +2,7 @@
  * Face
  *
  * @author Takuto Yanagida
- * @version 2024-10-28
+ * @version 2024-11-13
  */
 
 import { Vertex } from './vertex';
@@ -51,9 +51,8 @@ export class Face {
 			if (vertToSide.get(v) as number * siteSide >= 0) {
 				ret.push(v);  // Adds vertex on the specified side.
 			}
-			const iv: Vertex = edgeToInter.get(he) as Vertex;  // Adds intersection point of edge with plane.
-			if (iv !== null) {
-				ret.push(iv);
+			if (edgeToInter.has(he)) {
+				ret.push(edgeToInter.get(he) as Vertex);  // Adds intersection point of edge with plane.
 			}
 			he = he.next;
 		} while (he !== this.#firstEdge);
