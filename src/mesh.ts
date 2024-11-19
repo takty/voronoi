@@ -118,24 +118,7 @@ export class Mesh {
 
 		// Handle unpaired edges to form a closed loop, creating a new face
 		if (unpairedEs.length > 0) {
-			const faceEs: Edge[] = [];
-			let e: Edge = unpairedEs[0];
-			do {
-				if (e.next === null) {
-					break;
-				}
-				let next: Edge = e.next;
-				while (next && !unpairedEs.includes(next)) {
-					next = (next.pair as Edge).next as Edge;
-				}
-				const ne: Edge = new Edge(next.getBegin());
-				faceEs.push(ne);
-				ne.pair = e;
-				e.pair  = ne;
-				e       = next;
-			} while (e !== unpairedEs[0]);
-
-			faceEs.reverse();
+			const faceEs: Edge[] = Mesh.#createFaceEdgesFromUnpairedEdges(unpairedEs);
 			newEs.push(...faceEs);
 			newFs.push(new Face(faceEs));
 		}
@@ -188,30 +171,34 @@ export class Mesh {
 
 		// Form a closed loop with unpaired edges to create a new face if possible
 		if (unpairedEs.length > 0) {
-			const faceEs: Edge[] = [];
-			let e: Edge = unpairedEs[0];
-			do {
-				if (e.next === null) {
-					break;
-				}
-				let next: Edge = e.next;
-				while (next && !unpairedEs.includes(next)) {
-					next = (next.pair as Edge).next as Edge;
-				}
-				const ne: Edge = new Edge(next.getBegin());
-				faceEs.push(ne);
-				ne.pair = e;
-				e.pair  = ne;
-				e       = next;
-			} while (e !== unpairedEs[0]);
-
-			faceEs.reverse();
-
+			const faceEs: Edge[] = Mesh.#createFaceEdgesFromUnpairedEdges(unpairedEs);
 			if (faceEs.length > 2) {
 				return new Face(faceEs);
 			}
 		}
 		return null;
+	}
+
+	static #createFaceEdgesFromUnpairedEdges(unpairedEs: Edge[]): Edge[] {
+		const faceEs: Edge[] = [];
+		let e: Edge = unpairedEs[0];
+		do {
+			if (e.next === null) {
+				break;
+			}
+			let next: Edge = e.next;
+			while (next && !unpairedEs.includes(next)) {
+				next = (next.pair as Edge).next as Edge;
+			}
+			const ne: Edge = new Edge(next.getBegin());
+			faceEs.push(ne);
+			ne.pair = e;
+			e.pair  = ne;
+			e       = next;
+		} while (e !== unpairedEs[0]);
+
+		faceEs.reverse();
+		return faceEs;
 	}
 
 }
