@@ -2,7 +2,7 @@
  * Face
  *
  * @author Takuto Yanagida
- * @version 2024-11-13
+ * @version 2024-11-19
  */
 
 import { Vertex } from './vertex';
@@ -21,17 +21,27 @@ export class Face {
 	 * Creates an instance of Face, setting up the circular linkage of edges
 	 * to define a closed face.
 	 *
-	 * @param hes - An array of edges that form the face.
+	 * @param es - An array of edges that form the face.
 	 */
-	constructor(hes: Edge[]) {
-		const n: number = hes.length;
+	constructor(es: Edge[]) {
+		const n: number = es.length;
 
 		for (let i: number = 0; i < n - 1; ++i) {
-			hes[i].next = hes[i + 1];
+			es[i].setNext(es[i + 1]);
 		}
-		hes[n - 1].next = hes[0];
+		es[n - 1].setNext(es[0]);
 
-		this.#firstEdge = hes[0];
+		this.#firstEdge = es[0];
+	}
+
+	length(): number {
+		let ret: number = 0;
+		let e: Edge = this.#firstEdge;
+		do {
+			ret += 1;
+			e = e.next as Edge;
+		} while (e !== this.#firstEdge);
+		return ret;
 	}
 
 	/**
@@ -45,18 +55,51 @@ export class Face {
 	verticesOf(siteSide: number, vertToSide: Map<Vertex, number>, edgeToInter: Map<Edge, Vertex>): Vertex[] {
 		const ret: Vertex[] = [];  // Array to store vertices on the specified side.
 
-		let he: Edge = this.#firstEdge;
+		let e: Edge = this.#firstEdge;
 		do {
-			const v: Vertex = he.getBegin();
+			const v: Vertex = e.getBegin();
 			if (vertToSide.get(v) as number * siteSide >= 0) {
 				ret.push(v);  // Adds vertex on the specified side.
 			}
-			if (edgeToInter.has(he)) {
-				ret.push(edgeToInter.get(he) as Vertex);  // Adds intersection point of edge with plane.
+			if (edgeToInter.has(e)) {
+				ret.push(edgeToInter.get(e) as Vertex);  // Adds intersection point of edge with plane.
 			}
-			he = he.next;
-		} while (he !== this.#firstEdge);
+			e = e.next as Edge;
+		} while (e !== this.#firstEdge);
 
+		return ret;
+	}
+
+	/**
+	 * Counts grid points within the face restricted to a specific plane (common z-coordinate).
+	 *
+	 * @param cx - The center x-coordinate.
+	 * @param cy - The center y-coordinate.
+	 * @param resolution - The resolution of the grid.
+	 * @returns Count of the points.
+	 */
+	countGridPoints(cx: number, cy: number, resolution: number): number {
+		let ret: number = 0;
+
+		const ps: number[] = this.#getInternalPoints(cx, cy, resolution);
+		for (const _ of ps) {
+			ret += 1;
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const size: number = ret;
+
+			const ps0: number[] = this.#getInternalPoints(cx, cy + inc * resolution, resolution);
+			for (const _ of ps0) {
+				ret += 1;
+			}
+			const ps1: number[] = this.#getInternalPoints(cx, cy - inc * resolution, resolution);
+			for (const _ of ps1) {
+				ret += 1;
+			}
+			if (ret === size) {
+				break;
+			}
+		}
 		return ret;
 	}
 
@@ -70,7 +113,7 @@ export class Face {
 	 */
 	getGridPoints(cx: number, cy: number, resolution: number): [number, number, number][] {
 		const ret: [number, number, number][] = [];
-		const z: number = this.#firstEdge.getBegin().z;
+		const z: number = this.#firstEdge.getBegin()[2];
 
 		const ps: number[] = this.#getInternalPoints(cx, cy, resolution);
 		for (const x of ps) {
@@ -114,9 +157,7 @@ export class Face {
 		let x0: number = vs[0];
 		let x1: number = vs[1];
 		if (x0 > x1) {
-			const t: number = x0;
-			x0 = x1;
-			x1 = t;
+			[x0, x1] = [x1, x0];
 		}
 		if (x0 < cx && cx < x1) {
 			interPts.push(cx);
@@ -149,7 +190,7 @@ export class Face {
 	#getIntersectionPoints(y: number): number[] {
 		const interPts: number[] = [];
 
-		for (let e: Edge = this.#firstEdge; ; e = e.next) {
+		for (let e: Edge = this.#firstEdge; ; e = e.next as Edge) {
 			const x: number = this.#getIntersection(e, y);
 			if (!Number.isNaN(x)) {
 				interPts.push(x);
@@ -172,12 +213,12 @@ export class Face {
 	#getIntersection(e: Edge, y: number): number {
 		const v0: Vertex = e.getBegin();
 		const v1: Vertex = e.getEnd();
-		if (y < Math.min(v0.y, v1.y) || Math.max(v0.y, v1.y) < y) {
+		if (y < Math.min(v0[1], v1[1]) || Math.max(v0[1], v1[1]) < y) {
 			return Number.NaN;
 		}
-		const A: number = v1.y - v0.y;
-		const B: number = -(v1.x - v0.x);
-		const C: number = - A * v0.x - B * v0.y;
+		const A: number = v1[1] - v0[1];
+		const B: number = -(v1[0] - v0[0]);
+		const C: number = - A * v0[0] - B * v0[1];
 
 		if (Math.abs(A) < 0.0001) {
 			return Number.NaN;

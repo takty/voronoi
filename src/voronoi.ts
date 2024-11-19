@@ -1,10 +1,10 @@
 /**
  * Voronoi Partition
  * @author Takuto Yanagida
- * @version 2024-10-28
+ * @version 2024-11-19
  */
 
-import { Vertex } from './vertex';
+import { Vertex, intDiv, sub } from './vertex';
 import { Plane } from './plane';
 import { Face } from './face';
 import { Mesh } from './mesh';
@@ -16,6 +16,11 @@ import { Mesh } from './mesh';
  */
 export class Voronoi {
 
+	static readonly FACE_INDEXES: number[][] = [
+		[0, 1, 2, 3], [1, 0, 4, 5], [0, 3, 7, 4],
+		[2, 1, 5, 6], [5, 4, 7, 6], [3, 2, 6, 7]
+	];
+
 	#defaultVs: Vertex[];
 
 	#sites: Vertex[] = [];
@@ -24,78 +29,20 @@ export class Voronoi {
 	/**
 	 * Initializes the Voronoi partition with default vertices defining a bounding box.
 	 *
-	 * @param w0 - Minimum x-coordinate for the bounding box.
-	 * @param w1 - Maximum x-coordinate for the bounding box.
-	 * @param h0 - Minimum y-coordinate for the bounding box.
-	 * @param h1 - Maximum y-coordinate for the bounding box.
-	 * @param d0 - Minimum z-coordinate for the bounding box.
-	 * @param d1 - Maximum z-coordinate for the bounding box.
+	 * @param x0 - Minimum x-coordinate for the bounding box.
+	 * @param x1 - Maximum x-coordinate for the bounding box.
+	 * @param y0 - Minimum y-coordinate for the bounding box.
+	 * @param y1 - Maximum y-coordinate for the bounding box.
+	 * @param z0 - Minimum z-coordinate for the bounding box.
+	 * @param z1 - Maximum z-coordinate for the bounding box.
 	 */
-	constructor(w0: number, w1: number, h0: number, h1: number, d0: number, d1: number) {
+	constructor(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) {
 		this.#defaultVs = [
-			new Vertex(w1, h1, d1), new Vertex(w0, h1, d1),
-			new Vertex(w0, h1, d0), new Vertex(w1, h1, d0),
-			new Vertex(w1, h0, d1), new Vertex(w0, h0, d1),
-			new Vertex(w0, h0, d0), new Vertex(w1, h0, d0)
+			[x1, y1, z1], [x0, y1, z1],
+			[x0, y1, z0], [x1, y1, z0],
+			[x1, y0, z1], [x0, y0, z1],
+			[x0, y0, z0], [x1, y0, z0],
 		];
-	}
-
-	/**
-	 * Creates initial cells as regular hexahedrons.
-	 */
-	#createDefaultCells(): void {
-		const faceIndex: number[][] = [
-			[0, 1, 2, 3], [1, 0, 4, 5], [0, 3, 7, 4],
-			[2, 1, 5, 6], [5, 4, 7, 6], [3, 2, 6, 7]
-		];
-		for (const _ of this.#sites) {
-			const box: Mesh = new Mesh();
-			box.buildMesh(this.#defaultVs, faceIndex);
-			this.#cells.push(box);
-		}
-	}
-
-	/**
-	 * Creates the Voronoi cells by splitting initial cells based on adjacency
-	 * and weight tables, if provided.
-	 *
-	 * @param adjacencyTable - Optional adjacency table for the sites.
-	 * @param weightTable - Optional weight table that influences partitioning.
-	 */
-	#createVoronoi(adjacencyTable: number[][] | null = null, weightTable: number[][] | null = null): void {
-		if (!adjacencyTable && !weightTable) {
-			for (const [i, s0] of this.#sites.entries()) {
-				for (const s1 of this.#sites) {
-					if (s0 === s1) continue;
-					const org: Vertex = new Vertex((s0.x + s1.x) * 0.5, (s0.y + s1.y) * 0.5, (s0.z + s1.z) * 0.5);
-					const p: Plane = new Plane(org, new Vertex(s0.x - s1.x, s0.y - s1.y, s0.z - s1.z));
-					this.#cells[i].splitMesh(p, s0);
-				}
-			}
-		} else if (adjacencyTable && !weightTable) {
-			for (const [i, s0] of this.#sites.entries()) {
-				for (let a of adjacencyTable[i]) {
-					const s1: Vertex = this.#sites[a];
-					const org: Vertex = new Vertex((s0.x + s1.x) * 0.5, (s0.y + s1.y) * 0.5, (s0.z + s1.z) * 0.5);
-					const p: Plane = new Plane(org, new Vertex(s0.x - s1.x, s0.y - s1.y, s0.z - s1.z));
-					this.#cells[i].splitMesh(p, s0);
-				}
-			}
-		} else if (adjacencyTable && weightTable) {
-			for (const [i, s0] of this.#sites.entries()) {
-				const as: number[] = adjacencyTable[i];
-				const ws: number[] = weightTable[i];
-
-				for (let j: number = 0; j < as.length; ++j) {
-					const s1: Vertex = this.#sites[as[j]];
-					const r0: number = ws[j];
-					const r1: number = 1.0 - r0;  // r0 is the proportion of the site side
-					const org: Vertex = new Vertex(s0.x * r1 + s1.x * r0, s0.y * r1 + s1.y * r0, s0.z * r1 + s1.z * r0);
-					const p: Plane = new Plane(org, new Vertex(s0.x - s1.x, s0.y - s1.y, s0.z - s1.z));
-					this.#cells[i].splitMesh(p, s0);
-				}
-			}
-		}
 	}
 
 	/**
@@ -104,7 +51,7 @@ export class Voronoi {
 	 * @param site - Coordinates of the site as a tuple [x, y, z].
 	 */
 	addSite(site: [number, number, number]): void {
-		this.#sites.push(new Vertex(...site));
+		this.#sites.push([...site]);
 	}
 
 	/**
@@ -114,8 +61,111 @@ export class Voronoi {
 	 * @param weightTable - Optional weight table that affects partitioning.
 	 */
 	createCells(adjacencyTable: number[][] | null = null, weightTable: number[][] | null = null): void {
-		this.#createDefaultCells();
-		this.#createVoronoi(adjacencyTable, weightTable);
+		this.#cells.length = 0;
+
+		if (!adjacencyTable && !weightTable) {
+			this.#divide1();
+		} else if (adjacencyTable && !weightTable) {
+			this.#divide2(adjacencyTable);
+		} else if (adjacencyTable && weightTable) {
+			this.#divide3(adjacencyTable, weightTable);
+		}
+	}
+
+	/**
+	 * Creates the Voronoi cells by splitting initial cells.
+	 */
+	#divide1(): void {
+		for (const s of this.#sites) {
+			// Creates initial cells as regular hexahedrons.
+			const m: Mesh = Mesh.buildMesh(this.#defaultVs, Voronoi.FACE_INDEXES);
+
+			for (const t of this.#sites) {
+				if (s === t) continue;
+				const p: Plane = new Plane(intDiv(s, t), sub(s, t));
+				m.splitMesh(p, s);
+			}
+			this.#cells.push(m);
+		}
+	}
+	/**
+	 * Creates the Voronoi cells by splitting initial cells based on adjacency
+	 * tables.
+	 *
+	 * @param adjTab - Optional adjacency table for the sites.
+	 */
+	#divide2(adjTab: number[][]): void {
+		for (const [i, s] of this.#sites.entries()) {
+			// Creates initial cells as regular hexahedrons.
+			const m: Mesh = Mesh.buildMesh(this.#defaultVs, Voronoi.FACE_INDEXES);
+
+			for (let a of adjTab[i]) {
+				const t: Vertex = this.#sites[a];
+				const p: Plane = new Plane(intDiv(s, t), sub(s, t));
+				m.splitMesh(p, s);
+			}
+			this.#cells.push(m);
+		}
+	}
+
+	/**
+	 * Creates the Voronoi cells by splitting initial cells based on adjacency
+	 * and weight tables.
+	 *
+	 * @param adjTab - Optional adjacency table for the sites.
+	 * @param weiTab - Optional weight table that influences partitioning.
+	 */
+	#divide3(adjTab: number[][], weiTab: number[][]): void {
+		for (const [i, s] of this.#sites.entries()) {
+			// Creates initial cells as regular hexahedrons.
+			const m: Mesh = Mesh.buildMesh(this.#defaultVs, Voronoi.FACE_INDEXES);
+
+			const as: number[] = adjTab[i];
+			const ws: number[] = weiTab[i];
+
+			for (let j: number = 0; j < as.length; ++j) {
+				const t: Vertex = this.#sites[as[j]];
+				const p: Plane = new Plane(intDiv(s, t, ws[j]), sub(s, t));
+				m.splitMesh(p, s);
+			}
+			this.#cells.push(m);
+		}
+	}
+
+	/**
+	 * Counts a grid of points within a specified cell at a given resolution.
+	 *
+	 * @param index - The index of the cell for which to calculate grid points.
+	 * @param resolution - The spacing between grid points.
+	 * @returns Count of the points.
+	 */
+	countGrids(index: number, resolution: number): number {
+		let ret : number = 0;
+
+		const norm: Vertex = [0, 0, 1];
+		const s   : Vertex = this.#sites[index];
+		const c   : Mesh   = this.#cells[index];
+
+		const f: Face | null = c.crossSection([0, 0, s[2]], norm);
+		if (f) {
+			const pc: number = f.countGridPoints(s[0], s[1], resolution);
+			ret += pc;
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const f: Face | null = c.crossSection([0, 0, s[2] + inc * resolution], norm);
+			if (!f) break;
+			const pc: number = f.countGridPoints(s[0], s[1], resolution);
+			if (!pc) break;
+			ret += pc;
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const f: Face | null = c.crossSection([0, 0, s[2] - inc * resolution], norm);
+			if (!f) break;
+			const pc: number = f.countGridPoints(s[0], s[1], resolution);
+			if (!pc) break;
+			ret += pc;
+		}
+		return ret;
 	}
 
 	/**
@@ -125,30 +175,30 @@ export class Voronoi {
 	 * @param resolution - The spacing between grid points.
 	 * @returns A list of 3D coordinates representing grid points within the cell.
 	 */
-	calcGrids(index: number, resolution: number): [number, number, number][] {
-		const ret: [number, number, number][] = [];
-		const c: Mesh = this.#cells[index];
-		const s: Vertex = this.#sites[index];
-		const norm = new Vertex(0.0, 0.0, 1.0);
+	getGrids(index: number, resolution: number): Vertex[] {
+		const ret : Vertex[] = [];
 
-		const f: Face | null = c.crossSection(new Vertex(0.0, 0.0, s.z), norm);
-		if (f != null) {
-			ret.push(...f.getGridPoints(s.x, s.y, resolution));
+		const norm: Vertex = [0, 0, 1];
+		const s   : Vertex = this.#sites[index];
+		const c   : Mesh   = this.#cells[index];
+
+		const f: Face | null = c.crossSection([0, 0, s[2]], norm);
+		if (f) {
+			ret.push(...f.getGridPoints(s[0], s[1], resolution));
 		}
 		for (let inc: number = 1; ; ++inc) {
-			const size: number = ret.length;
-
-			const f0: Face | null = c.crossSection(new Vertex(0.0, 0.0, s.z + inc * resolution), norm);
-			if (f0 != null) {
-				ret.push(...f0.getGridPoints(s.x, s.y, resolution));
-			}
-			const f1: Face | null = c.crossSection(new Vertex(0.0, 0.0, s.z + -inc * resolution), norm);
-			if (f1 != null) {
-				ret.push(...f1.getGridPoints(s.x, s.y, resolution));
-			}
-			if (ret.length === size) {
-				break;
-			}
+			const f: Face | null = c.crossSection([0, 0, s[2] + inc * resolution], norm);
+			if (!f) break;
+			const ps: Vertex[] = f.getGridPoints(s[0], s[1], resolution);
+			if (!ps.length) break;
+			ret.push(...ps);
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const f: Face | null = c.crossSection([0, 0, s[2] - inc * resolution], norm);
+			if (!f) break;
+			const ps: Vertex[] = f.getGridPoints(s[0], s[1], resolution);
+			if (!ps.length) break;
+			ret.push(...ps);
 		}
 		return ret;
 	}

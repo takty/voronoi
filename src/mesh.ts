@@ -2,10 +2,10 @@
  * Mesh
  *
  * @author Takuto Yanagida
- * @version 2024-11-13
+ * @version 2024-11-19
  */
 
-import { Vertex } from './vertex';
+import { Vertex, add } from './vertex';
 import { Edge } from './edge';
 import { Face } from './face';
 import { Plane } from './plane';
@@ -18,11 +18,8 @@ import { Plane } from './plane';
 export class Mesh {
 
 	#vs: Vertex[] = [];
-	#es: Edge[] = [];
-	#fs: Face[] = [];
-
-	constructor() {
-	}
+	#es: Edge[]   = [];
+	#fs: Face[]   = [];
 
 	/**
 	 * Builds the mesh using a set of vertices and face indices.
@@ -31,20 +28,22 @@ export class Mesh {
 	 * @param vs - The vertices of the mesh.
 	 * @param faceIndex - Array of vertex indices, where each sub-array defines the vertices of a face.
 	 */
-	buildMesh(vs: Vertex[], faceIndex: number[][]): void {
+	static buildMesh(vs: Vertex[], faceIndex: number[][]): Mesh {
+		const m = new Mesh();
 		for (const v of vs) {
-			this.#vs.push(v);
+			m.#vs.push([...v]);
 		}
-		for (const fi of faceIndex) {
+		for (const vis of faceIndex) {
 			const faceEs: Edge[] = [];
-			for (const vi of fi) {
-				const e = new Edge(this.#vs[vi]);
-				faceEs.push(e);
-				this.#es.push(e);
+
+			for (const vi of vis) {
+				faceEs.push(new Edge(m.#vs[vi]));
 			}
-			this.#fs.push(new Face(faceEs));
+			m.#es.push(...faceEs);
+			m.#fs.push(new Face(faceEs));
 		}
-		this.#pairEdges(this.#es);
+		Mesh.#pairEdges(m.#es);
+		return m;
 	}
 
 	/**
@@ -53,7 +52,7 @@ export class Mesh {
 	 *
 	 * @param es - Array of edges in the mesh.
 	 */
-	#pairEdges(es: Edge[]): void {
+	static #pairEdges(es: Edge[]): void {
 		for (const e0 of es) {
 			if (e0.pair !== null) {
 				continue;
@@ -62,14 +61,17 @@ export class Mesh {
 				if (e0 === e1 || e1.pair !== null) {
 					continue;
 				}
-				 // Matching edge in opposite direction
-				if ((e0.getBegin() === e1.getEnd()) && (e1.getBegin() === e0.getEnd())) {
+				// Matching edge in opposite direction
+				if (e0.getBegin() === e1.getEnd() && e1.getBegin() === e0.getEnd()) {
 					e0.pair = e1;
 					e1.pair = e0;
 					break;
 				}
 			}
 		}
+	}
+
+	constructor() {
 	}
 
 	/**
@@ -83,50 +85,59 @@ export class Mesh {
 		if (siteSide === 0) {
 			return;
 		}
-		const newVs: Vertex[] = [];
-		const newFs: Face[] = [];
-		const newEs: Edge[] = [];
-
-		const sides: Map<Vertex, number> = p.sides(this.#vs);  // Check if each vertex is on front or back side of the plane
 		const edgeToInter: Map<Edge, Vertex> = p.intersections(this.#es);
+		if (edgeToInter.size === 0) {
+			return;
+		}
+		const sides: Map<Vertex, number> = p.sides(this.#vs);  // Check if each vertex is on front or back side of the plane
+		const newVs: Vertex[] = [];
+		const newEs: Edge[]   = [];
+		const newFs: Face[]   = [];
 
 		for (const f of this.#fs) {
 			const newFaceVs: Vertex[] = f.verticesOf(siteSide, sides, edgeToInter);
 
-			// If there are three or more vertices on the reference side, create a new face
-			if (newFaceVs.length > 2) {
-				const faceEs: Edge[] = [];
-				for (const v of newFaceVs) {
-					if (!newVs.includes(v)) {
-						newVs.push(v);
-					}
-					const e = new Edge(v);
-					faceEs.push(e);
-					newEs.push(e);
-				}
-				newFs.push(new Face(faceEs));
+			if (newFaceVs.length <= 2) {
+				continue;
 			}
-		}
-		this.#pairEdges(newEs);
+			// If there are three or more vertices on the reference side, create a new face
+			const faceEs: Edge[] = [];
 
-		const firstUnpairedEdge: Edge | undefined = newEs.find(e => e.pair === null);
+			for (const v of newFaceVs) {
+				if (!newVs.includes(v)) {
+					newVs.push(v);
+				}
+				faceEs.push(new Edge(v));
+			}
+			newEs.push(...faceEs);
+			newFs.push(new Face(faceEs));
+		}
+		Mesh.#pairEdges(newEs);
+
+		const unpairedEs: Edge[] = newEs.filter((e: Edge): boolean => e.pair === null);
 
 		// Handle unpaired edges to form a closed loop, creating a new face
-		if (firstUnpairedEdge) {
+		if (unpairedEs.length > 0) {
 			const faceEs: Edge[] = [];
-			let he: Edge = firstUnpairedEdge;
+			let e: Edge = unpairedEs[0];
 			do {
-				let next: Edge = (he.next.pair as Edge).next;
-				while (next.pair !== null) {
-					next = next.pair.next;
+				if (e.next === null) {
+					break;
 				}
-				const nhe: Edge = new Edge(next.getBegin());
-				faceEs.push(nhe);
-			} while (he !== firstUnpairedEdge);
+				let next: Edge = e.next;
+				while (next && !unpairedEs.includes(next)) {
+					next = (next.pair as Edge).next as Edge;
+				}
+				const ne: Edge = new Edge(next.getBegin());
+				faceEs.push(ne);
+				ne.pair = e;
+				e.pair  = ne;
+				e       = next;
+			} while (e !== unpairedEs[0]);
 
 			faceEs.reverse();
-			newFs.push(new Face(faceEs));
 			newEs.push(...faceEs);
+			newFs.push(new Face(faceEs));
 		}
 		this.#vs = newVs;
 		this.#fs = newFs;
@@ -142,61 +153,62 @@ export class Mesh {
 	 * @returns A Face representing the cross-section or null if no intersection exists.
 	 */
 	crossSection(org: Vertex, norm: Vertex): Face | null {
-		const ret: Mesh = new Mesh();
-
-		const p: Plane = new Plane(org, norm);
-		const siteSide: number = p.side(new Vertex(org.x + norm.x, org.y + norm.y, org.z + norm.z));
+		const p       : Plane = new Plane(org, norm);
+		const siteSide: number = p.side(add(org, norm));
 		if (siteSide === 0) {
 			return null;
 		}
 		// Determine front or back side for each vertex
-		const sides: Map<Vertex, number> = p.sides(this.#vs);
 		const edgeToInter: Map<Edge, Vertex> = p.intersections(this.#es);
 		if (edgeToInter.size === 0) {
 			return null;
 		}
+		const sides: Map<Vertex, number> = p.sides(this.#vs);
+		const newEs: Edge[]   = [];
+		const newFs: Face[]   = [];
+
 		for (const f of this.#fs) {
 			const newFaceVs: Vertex[] = f.verticesOf(siteSide, sides, edgeToInter);
 
-			// Create a new face if there are three or more vertices on the reference side
-			if (newFaceVs.length > 2) {
-				const faceEs: Edge[] = [];
-				for (const v of newFaceVs) {
-					if (!ret.#vs.includes(v)) {
-						ret.#vs.push(v);
-					}
-					const e = new Edge(v);
-					faceEs.push(e);
-					ret.#es.push(e);
-				}
-				ret.#fs.push(new Face(faceEs));
+			if (newFaceVs.length <= 2) {
+				continue;
 			}
-		}
-		this.#pairEdges(ret.#es);
+			// Create a new face if there are three or more vertices on the reference side
+			const faceEs: Edge[] = [];
 
-		const firstUnpairedEdge: Edge | undefined = ret.#es.find(e => e.pair === null);
+			for (const v of newFaceVs) {
+				faceEs.push(new Edge(v));
+			}
+			newEs.push(...faceEs);
+			newFs.push(new Face(faceEs));
+		}
+		Mesh.#pairEdges(newEs);
+
+		const unpairedEs: Edge[] = newEs.filter((e: Edge): boolean => e.pair === null);
 
 		// Form a closed loop with unpaired edges to create a new face if possible
-		if (firstUnpairedEdge) {
-			const faceEdges: Edge[] = [];
-			let he: Edge = firstUnpairedEdge;
+		if (unpairedEs.length > 0) {
+			const faceEs: Edge[] = [];
+			let e: Edge = unpairedEs[0];
 			do {
-				if (he.next === null || he.next.pair === null || he.next.pair.next === null) {
+				if (e.next === null) {
 					break;
 				}
-				let next: Edge = he.next.pair.next;
-				while (next !== null && next.pair) {
-					next = (next.pair as Edge).next;
+				let next: Edge = e.next;
+				while (next && !unpairedEs.includes(next)) {
+					next = (next.pair as Edge).next as Edge;
 				}
-				const nhe: Edge = new Edge(next.getBegin());
-				faceEdges.push(nhe);
-				nhe.pair = he;
-				he.pair  = nhe;
-				he       = next;
-			} while (he !== firstUnpairedEdge);
+				const ne: Edge = new Edge(next.getBegin());
+				faceEs.push(ne);
+				ne.pair = e;
+				e.pair  = ne;
+				e       = next;
+			} while (e !== unpairedEs[0]);
 
-			if (faceEdges.length > 2) {
-				return new Face(faceEdges.reverse());
+			faceEs.reverse();
+
+			if (faceEs.length > 2) {
+				return new Face(faceEs);
 			}
 		}
 		return null;
