@@ -2,7 +2,7 @@
  * Face
  *
  * @author Takuto Yanagida
- * @version 2024-11-19
+ * @version 2024-11-20
  */
 
 import { Vertex } from './vertex';
@@ -81,26 +81,61 @@ export class Face {
 	countGridPoints(cx: number, cy: number, resolution: number): number {
 		let ret: number = 0;
 
-		const ps: number[] = this.#getInternalPoints(cx, cy, resolution);
-		for (const _ of ps) {
-			ret += 1;
+		const pc: number = this.#countInternalPoints(cx, cy, resolution);
+		ret += pc;
+
+		for (let inc: number = 1; ; ++inc) {
+			const pc: number = this.#countInternalPoints(cx, cy + inc * resolution, resolution);
+			if (0 === pc) break;
+			ret += pc;
 		}
 		for (let inc: number = 1; ; ++inc) {
-			const size: number = ret;
-
-			const ps0: number[] = this.#getInternalPoints(cx, cy + inc * resolution, resolution);
-			for (const _ of ps0) {
-				ret += 1;
-			}
-			const ps1: number[] = this.#getInternalPoints(cx, cy - inc * resolution, resolution);
-			for (const _ of ps1) {
-				ret += 1;
-			}
-			if (ret === size) {
-				break;
-			}
+			const pc: number = this.#countInternalPoints(cx, cy - inc * resolution, resolution);
+			if (0 === pc) break;
+			ret += pc;
 		}
 		return ret;
+	}
+
+	/**
+	 * Returns internal grid points along the x-axis within the boundaries of the face on a given plane.
+	 *
+	 * @param cx - The center x-coordinate.
+	 * @param cy - The y-coordinate.
+	 * @param resolution - The resolution of the grid.
+	 * @returns An array of x-coordinates within the face boundaries.
+	 */
+	#countInternalPoints(cx: number, cy: number, resolution: number): number {
+		const ips: number[] = this.#getIntersectionPoints(cy);
+
+		if (ips.length !== 2) {
+			return 0;
+		}
+		let [x0, x1] = ips;
+		if (x0 > x1) {
+			[x0, x1] = [x1, x0];
+		}
+		let pc: number = 0;
+		if (x0 < cx && cx < x1) {
+			pc += 1;
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const s: number = pc;
+			const x: number = cx + inc * resolution;
+			if (x0 < x && x < x1) {
+				pc += 1;
+			}
+			if (pc === s) break;
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const s: number = pc;
+			const x: number = cx - inc * resolution;
+			if (x0 < x && x < x1) {
+				pc += 1;
+			}
+			if (pc === s) break;
+		}
+		return pc;
 	}
 
 	/**
@@ -120,20 +155,19 @@ export class Face {
 			ret.push([x, cy, z]);
 		}
 		for (let inc: number = 1; ; ++inc) {
-			const size: number = ret.length;
-
-			const ty0: number = cy + inc * resolution;
-			const ps0: number[] = this.#getInternalPoints(cx, ty0, resolution);
-			for (const x of ps0) {
-				ret.push([x, ty0, z]);
+			const y: number = cy + inc * resolution;
+			const ps: number[] = this.#getInternalPoints(cx, y, resolution);
+			if (0 === ps.length) break;
+			for (const x of ps) {
+				ret.push([x, y, z]);
 			}
-			const ty1: number = cy + -inc * resolution;
-			const ps1: number[] = this.#getInternalPoints(cx, ty1, resolution);
-			for (const x of ps1) {
-				ret.push([x, ty1, z]);
-			}
-			if (ret.length === size) {
-				break;
+		}
+		for (let inc: number = 1; ; ++inc) {
+			const y: number = cy - inc * resolution;
+			const ps: number[] = this.#getInternalPoints(cx, y, resolution);
+			if (0 === ps.length) break;
+			for (const x of ps) {
+				ret.push([x, y, z]);
 			}
 		}
 		return ret;
@@ -148,36 +182,36 @@ export class Face {
 	 * @returns An array of x-coordinates within the face boundaries.
 	 */
 	#getInternalPoints(cx: number, cy: number, resolution: number): number[] {
-		const interPts: number[] = [];
-		const vs: number[] = this.#getIntersectionPoints(cy);
+		const ips: number[] = this.#getIntersectionPoints(cy);
 
-		if (vs.length !== 2) {
-			return interPts;
+		if (ips.length !== 2) {
+			return [];
 		}
-		let x0: number = vs[0];
-		let x1: number = vs[1];
+		let [x0, x1] = ips;
 		if (x0 > x1) {
 			[x0, x1] = [x1, x0];
 		}
+		const pts: number[] = [];
 		if (x0 < cx && cx < x1) {
-			interPts.push(cx);
+			pts.push(cx);
 		}
 		for (let inc: number = 1; ; ++inc) {
-			const size: number = interPts.length;
-
-			const tx0: number = cx + inc * resolution;
-			if (x0 < tx0 && tx0 < x1) {
-				interPts.push(tx0);
+			const s: number = pts.length;
+			const x: number = cx + inc * resolution;
+			if (x0 < x && x < x1) {
+				pts.push(x);
 			}
-			const tx1: number = cx + -inc * resolution;
-			if (x0 < tx1 && tx1 < x1) {
-				interPts.push(tx1);
-			}
-			if (interPts.length === size) {
-				break;
-			}
+			if (pts.length === s) break;
 		}
-		return interPts;
+		for (let inc: number = 1; ; ++inc) {
+			const s: number = pts.length;
+			const x: number = cx - inc * resolution;
+			if (x0 < x && x < x1) {
+				pts.push(x);
+			}
+			if (pts.length === s) break;
+		}
+		return pts;
 	}
 
 	/**
@@ -188,18 +222,18 @@ export class Face {
 	 * @returns An array of x-coordinates where edges intersect the y-coordinate.
 	 */
 	#getIntersectionPoints(y: number): number[] {
-		const interPts: number[] = [];
+		const pts: number[] = [];
 
 		for (let e: Edge = this.#firstEdge; ; e = e.next as Edge) {
 			const x: number = this.#getIntersection(e, y);
 			if (!Number.isNaN(x)) {
-				interPts.push(x);
+				pts.push(x);
 			}
 			if (e.next === this.#firstEdge) {
 				break;
 			}
 		}
-		return interPts;
+		return pts;
 	}
 
 	/**
@@ -211,14 +245,15 @@ export class Face {
 	 * @returns The x-coordinate of the intersection or NaN if no intersection occurs.
 	 */
 	#getIntersection(e: Edge, y: number): number {
-		const v0: Vertex = e.getBegin();
-		const v1: Vertex = e.getEnd();
-		if (y < Math.min(v0[1], v1[1]) || Math.max(v0[1], v1[1]) < y) {
+		const [x0, y0] = e.getBegin();
+		const [x1, y1] = e.getEnd();
+
+		if (y < Math.min(y0, y1) || Math.max(y0, y1) < y) {
 			return Number.NaN;
 		}
-		const A: number = v1[1] - v0[1];
-		const B: number = -(v1[0] - v0[0]);
-		const C: number = - A * v0[0] - B * v0[1];
+		const A: number = y1 - y0;
+		const B: number = -(x1 - x0);
+		const C: number = - A * x0 - B * y0;
 
 		if (Math.abs(A) < 0.0001) {
 			return Number.NaN;
