@@ -2,7 +2,7 @@
  * Face
  *
  * @author Takuto Yanagida
- * @version 2024-11-20
+ * @version 2024-11-22
  */
 
 import { Vertex } from './vertex';
@@ -14,6 +14,8 @@ import { Edge } from './edge';
  * within or along its edges in a plane.
  */
 export class Face {
+
+	static readonly E: number = 0.001;
 
 	#firstEdge: Edge;
 
@@ -34,6 +36,11 @@ export class Face {
 		this.#firstEdge = es[0];
 	}
 
+	/**
+	 * Calculates the number of edges that compose this face.
+	 *
+	 * @returns The total number of edges in the face.
+	 */
 	length(): number {
 		let ret: number = 0;
 		let e: Edge = this.#firstEdge;
@@ -47,18 +54,18 @@ export class Face {
 	/**
 	 * Returns the vertices on the specified side of the face based on a provided side reference.
 	 *
-	 * @param siteSide - The reference side of the face.
+	 * @param refSide - The reference side of the face.
 	 * @param vertToSide - A map associating each vertex with a specific side.
 	 * @param edgeToInter - A map providing intersection points for edges that intersect a plane.
 	 * @returns An array of vertices on the specified side of the face.
 	 */
-	verticesOf(siteSide: number, vertToSide: Map<Vertex, number>, edgeToInter: Map<Edge, Vertex>): Vertex[] {
+	verticesOf(refSide: number, vertToSide: Map<Vertex, number>, edgeToInter: Map<Edge, Vertex>): Vertex[] {
 		const ret: Vertex[] = [];  // Array to store vertices on the specified side.
 
 		let e: Edge = this.#firstEdge;
 		do {
 			const v: Vertex = e.getBegin();
-			if (vertToSide.get(v) as number * siteSide >= 0) {
+			if (vertToSide.get(v) as number * refSide >= 0) {
 				ret.push(v);  // Adds vertex on the specified side.
 			}
 			if (edgeToInter.has(e)) {
@@ -76,7 +83,7 @@ export class Face {
 	 * @param cx - The center x-coordinate.
 	 * @param cy - The center y-coordinate.
 	 * @param resolution - The resolution of the grid.
-	 * @returns Count of the points.
+	 * @returns The count of grid points within the face.
 	 */
 	countGridPoints(cx: number, cy: number, resolution: number): number {
 		let ret: number = 0;
@@ -103,14 +110,11 @@ export class Face {
 	 * @param cx - The center x-coordinate.
 	 * @param cy - The y-coordinate.
 	 * @param resolution - The resolution of the grid.
-	 * @returns An array of x-coordinates within the face boundaries.
+	 * @returns The number of internal grid points at the specified y-coordinate.
 	 */
 	#countInternalPoints(cx: number, cy: number, resolution: number): number {
 		const ips: number[] = this.#getIntersectionPoints(cy);
 
-		if (ips.length !== 2) {
-			return 0;
-		}
 		let [x0, x1] = ips;
 		if (x0 > x1) {
 			[x0, x1] = [x1, x0];
@@ -174,19 +178,16 @@ export class Face {
 	}
 
 	/**
-	 * Returns internal grid points along the x-axis within the boundaries of the face on a given plane.
+	 * Computes the x-coordinates of grid points within the face boundaries at a specific y-coordinate.
 	 *
 	 * @param cx - The center x-coordinate.
-	 * @param cy - The y-coordinate.
+	 * @param cy - The y-coordinate at which to compute points.
 	 * @param resolution - The resolution of the grid.
-	 * @returns An array of x-coordinates within the face boundaries.
+	 * @returns An array of x-coordinates of internal grid points at the specified y-coordinate.
 	 */
 	#getInternalPoints(cx: number, cy: number, resolution: number): number[] {
 		const ips: number[] = this.#getIntersectionPoints(cy);
 
-		if (ips.length !== 2) {
-			return [];
-		}
 		let [x0, x1] = ips;
 		if (x0 > x1) {
 			[x0, x1] = [x1, x0];
@@ -215,50 +216,72 @@ export class Face {
 	}
 
 	/**
-	 * Calculates the x-coordinates of intersection points along edges of the face at a specific y-coordinate.
-	 * Restricted to the same plane (common z-coordinate).
+	 * Calculates the x-coordinates where the face's edges intersect a horizontal line at a specified y-coordinate.
 	 *
-	 * @param y - The y-coordinate at which to find intersection points.
-	 * @returns An array of x-coordinates where edges intersect the y-coordinate.
+	 * @param y - The y-coordinate at which to find intersections.
+	 * @returns An array of x-coordinates where the edges intersect the horizontal line.
 	 */
 	#getIntersectionPoints(y: number): number[] {
 		const pts: number[] = [];
 
 		for (let e: Edge = this.#firstEdge; ; e = e.next as Edge) {
-			const x: number = this.#getIntersection(e, y);
-			if (!Number.isNaN(x)) {
-				pts.push(x);
-			}
+			const xs: number[] = Face.#getIntersection(e, y);
+			pts.push(...xs);
 			if (e.next === this.#firstEdge) {
 				break;
 			}
 		}
-		return pts;
+		return Face.#removeDuplicates(pts);
 	}
 
 	/**
-	 * Calculates the x-coordinate of the intersection between an edge and a horizontal line at y.
-	 * Restricted to the same plane (common z-coordinate).
+	 * Calculates the x-coordinate(s) where a given edge intersects a horizontal line at a specified y-coordinate.
 	 *
-	 * @param e - The edge for which to calculate the intersection.
+	 * @param e - The edge to check for intersection.
 	 * @param y - The y-coordinate of the horizontal line.
-	 * @returns The x-coordinate of the intersection or NaN if no intersection occurs.
+	 * @returns An array of x-coordinates where the edge intersects the line; empty if no intersection.
 	 */
-	#getIntersection(e: Edge, y: number): number {
+	static #getIntersection(e: Edge, y: number): number[] {
 		const [x0, y0] = e.getBegin();
 		const [x1, y1] = e.getEnd();
 
 		if (y < Math.min(y0, y1) || Math.max(y0, y1) < y) {
-			return Number.NaN;
+			return [];
+		}
+		if (Math.abs(y0 - y1) < Face.E) {
+			return [x0, x1];
 		}
 		const A: number = y1 - y0;
 		const B: number = -(x1 - x0);
 		const C: number = - A * x0 - B * y0;
 
-		if (Math.abs(A) < 0.0001) {
-			return Number.NaN;
+		if (Math.abs(A) < Face.E) {
+			return [];
 		}
-		return -(B * y + C) / A;
+		return [-(B * y + C) / A];
+	}
+
+	/**
+	 * Removes near-duplicate numbers from an array, considering values within a small epsilon (Face.E) as duplicates.
+	 *
+	 * @param vs - An array of numbers.
+	 * @returns A new sorted array with near-duplicates removed.
+	 */
+	static #removeDuplicates(vs: number[]): number[] {
+		if (vs.length === 0) return [];
+
+		vs.sort((a: number, b: number): number => a - b);
+		const res: number[] = [];
+		let cur: number = vs[0];
+
+		for (let i: number = 1; i < vs.length; i++) {
+			if (Face.E < vs[i] - vs[i - 1]) {
+				res.push(cur);
+				cur = vs[i];
+			}
+		}
+		res.push(cur);
+		return res;
 	}
 
 }

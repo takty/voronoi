@@ -2,7 +2,7 @@
  * Plane
  *
  * @author Takuto Yanagida
- * @version 2024-11-19
+ * @version 2024-11-22
  */
 
 import { Vertex } from './vertex';
@@ -14,6 +14,8 @@ import { Edge } from './edge';
  * and to find intersections of edges or vertices with the plane.
  */
 export class Plane {
+
+	static readonly E: number = 0.001;
 
 	#A: number;
 	#B: number;
@@ -44,8 +46,8 @@ export class Plane {
 	 */
 	side(p: Vertex): -1 | 0 | 1 {
 		const t: number = this.#A * p[0] + this.#B * p[1] + this.#C * p[2] + this.#D;
-		if (t < -0.001) return -1;
-		if (t > 0.001) return 1;
+		if (t < -Plane.E) return -1;
+		if (t > Plane.E) return 1;
 		return 0;
 	}
 
