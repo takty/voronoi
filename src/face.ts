@@ -2,7 +2,7 @@
  * Face
  *
  * @author Takuto Yanagida
- * @version 2024-11-22
+ * @version 2026-07-10
  */
 
 import { Vertex } from './vertex';
@@ -148,19 +148,20 @@ export class Face {
 	 * @param cx - The center x-coordinate.
 	 * @param cy - The center y-coordinate.
 	 * @param resolution - The resolution of the grid.
+	 * @param includeBoundary - Whether points on boundaries are included.
 	 * @returns An array of 3D points within the face on the specified plane.
 	 */
-	getGridPoints(cx: number, cy: number, resolution: number): [number, number, number][] {
+	getGridPoints(cx: number, cy: number, resolution: number, includeBoundary: boolean = false): [number, number, number][] {
 		const ret: [number, number, number][] = [];
 		const z: number = this.#firstEdge.getBegin()[2];
 
-		const ps: number[] = this.#getInternalPoints(cx, cy, resolution);
+		const ps: number[] = this.#getInternalPoints(cx, cy, resolution, includeBoundary);
 		for (const x of ps) {
 			ret.push([x, cy, z]);
 		}
 		for (let inc: number = 1; ; ++inc) {
 			const y: number = cy + inc * resolution;
-			const ps: number[] = this.#getInternalPoints(cx, y, resolution);
+			const ps: number[] = this.#getInternalPoints(cx, y, resolution, includeBoundary);
 			if (0 === ps.length) break;
 			for (const x of ps) {
 				ret.push([x, y, z]);
@@ -168,7 +169,7 @@ export class Face {
 		}
 		for (let inc: number = 1; ; ++inc) {
 			const y: number = cy - inc * resolution;
-			const ps: number[] = this.#getInternalPoints(cx, y, resolution);
+			const ps: number[] = this.#getInternalPoints(cx, y, resolution, includeBoundary);
 			if (0 === ps.length) break;
 			for (const x of ps) {
 				ret.push([x, y, z]);
@@ -183,23 +184,28 @@ export class Face {
 	 * @param cx - The center x-coordinate.
 	 * @param cy - The y-coordinate at which to compute points.
 	 * @param resolution - The resolution of the grid.
+	 * @param includeBoundary - Whether points on boundaries are included.
 	 * @returns An array of x-coordinates of internal grid points at the specified y-coordinate.
 	 */
-	#getInternalPoints(cx: number, cy: number, resolution: number): number[] {
+	#getInternalPoints(cx: number, cy: number, resolution: number, includeBoundary: boolean = false): number[] {
 		const ips: number[] = this.#getIntersectionPoints(cy);
 
 		let [x0, x1] = ips;
 		if (x0 > x1) {
 			[x0, x1] = [x1, x0];
 		}
+		const contains = includeBoundary
+			? (v: number): boolean => x0 <= v && v <= x1
+			: (v: number): boolean => x0 <  v && v <  x1;
+
 		const pts: number[] = [];
-		if (x0 < cx && cx < x1) {
+		if (contains(cx)) {
 			pts.push(cx);
 		}
 		for (let inc: number = 1; ; ++inc) {
 			const s: number = pts.length;
 			const x: number = cx + inc * resolution;
-			if (x0 < x && x < x1) {
+			if (contains(x)) {
 				pts.push(x);
 			}
 			if (pts.length === s) break;
@@ -207,7 +213,7 @@ export class Face {
 		for (let inc: number = 1; ; ++inc) {
 			const s: number = pts.length;
 			const x: number = cx - inc * resolution;
-			if (x0 < x && x < x1) {
+			if (contains(x)) {
 				pts.push(x);
 			}
 			if (pts.length === s) break;

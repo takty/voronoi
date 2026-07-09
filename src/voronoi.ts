@@ -1,7 +1,7 @@
 /**
  * Voronoi Partition
  * @author Takuto Yanagida
- * @version 2024-11-19
+ * @version 2026-07-10
  */
 
 import { Vertex, intDiv, sub } from './vertex';
@@ -69,6 +69,8 @@ export class Voronoi {
 			this.#divide2(adjacencyTable);
 		} else if (adjacencyTable && weightTable) {
 			this.#divide3(adjacencyTable, weightTable);
+		} else {
+			throw new Error('weightTable cannot be specified without adjacencyTable');
 		}
 	}
 
@@ -82,7 +84,11 @@ export class Voronoi {
 
 			for (const t of this.#sites) {
 				if (s === t) continue;
-				const p: Plane = new Plane(intDiv(s, t), sub(s, t));
+				const n: Vertex = sub(s, t);
+				if (n[0] === 0 && n[1] === 0 && n[2] === 0) {
+					throw new Error('duplicate sites are not allowed in Voronoi partition');
+				}
+				const p: Plane = new Plane(intDiv(s, t), n);
 				m.splitMesh(p, s);
 			}
 			this.#cells.push(m);
@@ -101,7 +107,11 @@ export class Voronoi {
 
 			for (let a of adjTab[i]) {
 				const t: Vertex = this.#sites[a];
-				const p: Plane = new Plane(intDiv(s, t), sub(s, t));
+				const n: Vertex = sub(s, t);
+				if (n[0] === 0 && n[1] === 0 && n[2] === 0) {
+					throw new Error('duplicate sites are not allowed in Voronoi partition');
+				}
+				const p: Plane = new Plane(intDiv(s, t), n);
 				m.splitMesh(p, s);
 			}
 			this.#cells.push(m);
@@ -125,7 +135,11 @@ export class Voronoi {
 
 			for (let j: number = 0; j < as.length; ++j) {
 				const t: Vertex = this.#sites[as[j]];
-				const p: Plane = new Plane(intDiv(s, t, ws[j]), sub(s, t));
+				const n: Vertex = sub(s, t);
+				if (n[0] === 0 && n[1] === 0 && n[2] === 0) {
+					throw new Error('duplicate sites are not allowed in Voronoi partition');
+				}
+				const p: Plane = new Plane(intDiv(s, t, ws[j]), n);
 				m.splitMesh(p, s);
 			}
 			this.#cells.push(m);
@@ -140,6 +154,9 @@ export class Voronoi {
 	 * @returns Count of the points.
 	 */
 	countGrids(index: number, resolution: number): number {
+		if (!Number.isFinite(resolution) || resolution <= 0) {
+			throw new Error('resolution must be a positive finite number');
+		}
 		let ret : number = 0;
 
 		const norm: Vertex = [0, 0, 1];
@@ -176,6 +193,9 @@ export class Voronoi {
 	 * @returns A list of 3D coordinates representing grid points within the cell.
 	 */
 	getGrids(index: number, resolution: number): Vertex[] {
+		if (!Number.isFinite(resolution) || resolution <= 0) {
+			throw new Error('resolution must be a positive finite number');
+		}
 		const ret : Vertex[] = [];
 
 		const norm: Vertex = [0, 0, 1];
