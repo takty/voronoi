@@ -160,20 +160,19 @@ export class Face {
 			ret.push([x, cy, z]);
 		}
 		for (let inc: number = 1; ; ++inc) {
-			const y: number = cy + inc * resolution;
-			const ps: number[] = this.#getInternalPoints(cx, y, resolution, includeBoundary);
-			if (0 === ps.length) break;
-			for (const x of ps) {
-				ret.push([x, y, z]);
+			const size: number = ret.length;
+
+			const y0: number = cy + inc * resolution;
+			const ps0: number[] = this.#getInternalPoints(cx, y0, resolution, includeBoundary);
+			for (const x of ps0) {
+				ret.push([x, y0, z]);
 			}
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const y: number = cy - inc * resolution;
-			const ps: number[] = this.#getInternalPoints(cx, y, resolution, includeBoundary);
-			if (0 === ps.length) break;
-			for (const x of ps) {
-				ret.push([x, y, z]);
+			const y1: number = cy - inc * resolution;
+			const ps1: number[] = this.#getInternalPoints(cx, y1, resolution, includeBoundary);
+			for (const x of ps1) {
+				ret.push([x, y1, z]);
 			}
+			if (ret.length === size) break;
 		}
 		return ret;
 	}
