@@ -1,19 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<title>Voronoi</title>
-<meta name="description" content="Samples of the Voronoi">
-<meta name="author" content="">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-  <script type="module" crossorigin src="./assets/index-DqVO10LR.js"></script>
+	<meta charset="utf-8">
+	<title>Voronoi</title>
+	<meta name="description" content="Samples of the Voronoi">
+	<meta name="author" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<style>
+		header + main {
+			margin-block-start: 1rem;
+		}
+
+		.frame {
+			background-color: #aaa3;
+			padding         : 1.25rem 1.5rem;
+
+			> :first-child {
+				margin-block-start: 0;
+			}
+			> :last-child {
+				margin-block-end: 0;
+			}
+		}
+
+		.controls {
+			display    : flex;
+			flex-wrap  : wrap;
+			align-items: center;
+			gap        : 1rem;
+
+			margin-block: 1rem;
+		}
+
+		canvas#diagram {
+			inline-size: 100%;
+			border     : 1px solid #999;
+			background : canvas;
+
+			touch-action: none;
+		}
+	</style>
+  <script type="module" crossorigin src="./assets/index-B41OYdAX.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DPCbRKSG.css">
 </head>
+
 <body>
 	<header>
 		<h1>Voronoi</h1>
 	</header>
 
 	<main>
+		<div class="frame">
+			<details open>
+				<summary>Description</summary>
+				<p>
+					Click or touch the canvas to add sites. Each site is assigned a random color, and the Voronoi
+					partition is redrawn as grid points.
+				</p>
+			</details>
+		</div>
+
+		<aside class="controls">
+			<label>Resolution: <input id="resolution" type="number" min="2" max="80" step="1" value="10"></label>
+			<button id="clear">Clear</button>
+			<output id="status"></output>
+		</aside>
+
+		<canvas id="diagram" width="640" height="640"></canvas>
 	</main>
 </body>
+
 </html>

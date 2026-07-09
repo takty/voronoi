@@ -28,6 +28,7 @@
 		"build": "node ./build.js",
 		"docs": "vite build",
 		"dev": "vite src/_docs --base ./",
+		"test": "vite src/_test --base ./",
 		"debug": "tsc --noEmit -w"
 	},
 	"packageManager": "yarn@4.17.1",
