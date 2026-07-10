@@ -236,8 +236,8 @@ export class Voronoi {
 
 		const [z0, z1] = range;
 
-		const k0: number = Math.floor((z0 - cz) / resolution) + 1;
-		const k1: number = Math.ceil ((z1 - cz) / resolution) - 1;
+		const k0: number = Math.ceil((z0 - cz) / resolution);
+		const k1: number = Math.ceil((z1 - cz) / resolution) - 1;
 
 		return k0 <= k1 ? [k0, k1] : null;
 	}

@@ -199,7 +199,7 @@ export class Mesh {
 		let e: Edge = unpairedEs[0];
 		do {
 			if (e.next === null || e.next.pair === null || e.next.pair.next === null) {
-				break;
+				return [];
 			}
 			let next: Edge = e.next.pair.next;
 			while (!unpairedEs.includes(next)) {
