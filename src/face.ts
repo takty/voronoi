@@ -114,32 +114,16 @@ export class Face {
 	 */
 	#countInternalPoints(cx: number, cy: number, resolution: number): number {
 		const ips: number[] = this.#getIntersectionPoints(cy);
+		if (ips.length < 2) return 0;
 
 		let [x0, x1] = ips;
 		if (x0 > x1) {
 			[x0, x1] = [x1, x0];
 		}
-		let pc: number = 0;
-		if (x0 < cx && cx < x1) {
-			pc += 1;
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const s: number = pc;
-			const x: number = cx + inc * resolution;
-			if (x0 < x && x < x1) {
-				pc += 1;
-			}
-			if (pc === s) break;
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const s: number = pc;
-			const x: number = cx - inc * resolution;
-			if (x0 < x && x < x1) {
-				pc += 1;
-			}
-			if (pc === s) break;
-		}
-		return pc;
+		const k0: number = Math.floor((x0 - cx) / resolution) + 1;
+		const k1: number = Math.ceil((x1 - cx) / resolution) - 1;
+
+		return Math.max(0, k1 - k0 + 1);
 	}
 
 	/**
@@ -148,14 +132,13 @@ export class Face {
 	 * @param cx - The center x-coordinate.
 	 * @param cy - The center y-coordinate.
 	 * @param resolution - The resolution of the grid.
-	 * @param includeBoundary - Whether points on boundaries are included.
 	 * @returns An array of 3D points within the face on the specified plane.
 	 */
-	getGridPoints(cx: number, cy: number, resolution: number, includeBoundary: boolean = false): [number, number, number][] {
+	getGridPoints(cx: number, cy: number, resolution: number): [number, number, number][] {
 		const ret: [number, number, number][] = [];
 		const z: number = this.#firstEdge.getBegin()[2];
 
-		const ps: number[] = this.#getInternalPoints(cx, cy, resolution, includeBoundary);
+		const ps: number[] = this.#getInternalPoints(cx, cy, resolution);
 		for (const x of ps) {
 			ret.push([x, cy, z]);
 		}
@@ -163,12 +146,12 @@ export class Face {
 			const size: number = ret.length;
 
 			const y0: number = cy + inc * resolution;
-			const ps0: number[] = this.#getInternalPoints(cx, y0, resolution, includeBoundary);
+			const ps0: number[] = this.#getInternalPoints(cx, y0, resolution);
 			for (const x of ps0) {
 				ret.push([x, y0, z]);
 			}
 			const y1: number = cy - inc * resolution;
-			const ps1: number[] = this.#getInternalPoints(cx, y1, resolution, includeBoundary);
+			const ps1: number[] = this.#getInternalPoints(cx, y1, resolution);
 			for (const x of ps1) {
 				ret.push([x, y1, z]);
 			}
@@ -183,39 +166,34 @@ export class Face {
 	 * @param cx - The center x-coordinate.
 	 * @param cy - The y-coordinate at which to compute points.
 	 * @param resolution - The resolution of the grid.
-	 * @param includeBoundary - Whether points on boundaries are included.
 	 * @returns An array of x-coordinates of internal grid points at the specified y-coordinate.
 	 */
-	#getInternalPoints(cx: number, cy: number, resolution: number, includeBoundary: boolean = false): number[] {
+	#getInternalPoints(cx: number, cy: number, resolution: number): number[] {
 		const ips: number[] = this.#getIntersectionPoints(cy);
+		if (ips.length < 2) return [];
 
 		let [x0, x1] = ips;
 		if (x0 > x1) {
 			[x0, x1] = [x1, x0];
 		}
-		const contains = includeBoundary
-			? (v: number): boolean => x0 <= v && v <= x1
-			: (v: number): boolean => x0 <  v && v <  x1;
+		const k0: number = Math.floor((x0 - cx) / resolution) + 1;
+		const k1: number = Math.ceil((x1 - cx) / resolution) - 1;
 
 		const pts: number[] = [];
-		if (contains(cx)) {
+		if (k1 < k0) return pts;
+
+		const max: number = Math.max(Math.abs(k0), Math.abs(k1));
+
+		if (k0 <= 0 && 0 <= k1) {
 			pts.push(cx);
 		}
-		for (let inc: number = 1; ; ++inc) {
-			const s: number = pts.length;
-			const x: number = cx + inc * resolution;
-			if (contains(x)) {
-				pts.push(x);
+		for (let inc: number = 1; inc <= max; ++inc) {
+			if (k0 <= inc && inc <= k1) {
+				pts.push(cx + inc * resolution);
 			}
-			if (pts.length === s) break;
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const s: number = pts.length;
-			const x: number = cx - inc * resolution;
-			if (contains(x)) {
-				pts.push(x);
+			if (k0 <= -inc && -inc <= k1) {
+				pts.push(cx - inc * resolution);
 			}
-			if (pts.length === s) break;
 		}
 		return pts;
 	}
@@ -250,19 +228,16 @@ export class Face {
 		const [x0, y0] = e.getBegin();
 		const [x1, y1] = e.getEnd();
 
-		if (y < Math.min(y0, y1) || Math.max(y0, y1) < y) {
+		if (y < Math.min(y0, y1) || Math.max(y0, y1) <= y) {
 			return [];
 		}
 		if (Math.abs(y0 - y1) < Face.E) {
-			return [x0, x1];
+			return [];
 		}
 		const A: number = y1 - y0;
 		const B: number = -(x1 - x0);
 		const C: number = - A * x0 - B * y0;
 
-		if (Math.abs(A) < Face.E) {
-			return [];
-		}
 		return [-(B * y + C) / A];
 	}
 

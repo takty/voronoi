@@ -190,10 +190,9 @@ export class Voronoi {
 	 *
 	 * @param index - The index of the cell for which to calculate grid points.
 	 * @param resolution - The spacing between grid points.
-	 * @param includeBoundary - Whether points on boundaries are included.
 	 * @returns A list of 3D coordinates representing grid points within the cell.
 	 */
-	getGrids(index: number, resolution: number, includeBoundary: boolean = false): Vertex[] {
+	getGrids(index: number, resolution: number): Vertex[] {
 		if (!Number.isFinite(resolution) || resolution <= 0) {
 			throw new Error('resolution must be a positive finite number');
 		}
@@ -205,18 +204,18 @@ export class Voronoi {
 
 		const f: Face | null = c.crossSection([0, 0, s[2]], norm);
 		if (f) {
-			ret.push(...f.getGridPoints(s[0], s[1], resolution, includeBoundary));
+			ret.push(...f.getGridPoints(s[0], s[1], resolution));
 		}
 		for (let inc: number = 1; ; ++inc) {
 			const size: number = ret.length;
 
 			const f0: Face | null = c.crossSection([0, 0, s[2] + inc * resolution], norm);
 			if (f0) {
-				ret.push(...f0.getGridPoints(s[0], s[1], resolution, includeBoundary));
+				ret.push(...f0.getGridPoints(s[0], s[1], resolution));
 			}
 			const f1: Face | null = c.crossSection([0, 0, s[2] - inc * resolution], norm);
 			if (f1) {
-				ret.push(...f1.getGridPoints(s[0], s[1], resolution, includeBoundary));
+				ret.push(...f1.getGridPoints(s[0], s[1], resolution));
 			}
 			if (ret.length === size) break;
 		}

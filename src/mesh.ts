@@ -2,7 +2,7 @@
  * Mesh
  *
  * @author Takuto Yanagida
- * @version 2024-11-19
+ * @version 2026-07-10
  */
 
 import { Vertex, add } from './vertex';
@@ -119,8 +119,10 @@ export class Mesh {
 		// Handle unpaired edges to form a closed loop, creating a new face
 		if (unpairedEs.length > 0) {
 			const faceEs: Edge[] = Mesh.#createFaceEdgesFromUnpairedEdges(unpairedEs);
-			newEs.push(...faceEs);
-			newFs.push(new Face(faceEs));
+			if (faceEs.length > 2) {
+				newEs.push(...faceEs);
+				newFs.push(new Face(faceEs));
+			}
 		}
 		this.#vs = newVs;
 		this.#fs = newFs;
@@ -183,10 +185,10 @@ export class Mesh {
 		const faceEs: Edge[] = [];
 		let e: Edge = unpairedEs[0];
 		do {
-			if (e.next === null) {
+			if (e.next === null || e.next.pair === null || e.next.pair.next === null) {
 				break;
 			}
-			let next: Edge = e.next;
+			let next: Edge = e.next.pair.next;
 			while (next && !unpairedEs.includes(next)) {
 				next = (next.pair as Edge).next as Edge;
 			}
