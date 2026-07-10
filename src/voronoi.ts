@@ -163,24 +163,32 @@ export class Voronoi {
 		const s   : Vertex = this.#sites[index];
 		const c   : Mesh   = this.#cells[index];
 
-		const f: Face | null = c.crossSection([0, 0, s[2]], norm);
-		if (f) {
-			const pc: number = f.countGridPoints(s[0], s[1], resolution);
-			ret += pc;
+		const range: [number, number] | null = Voronoi.#getZIndexRange(c, s[2], resolution);
+		if (range === null) return ret;
+
+		const [k0, k1] = range;
+		const max: number = Math.max(Math.abs(k0), Math.abs(k1));
+
+		const countSection = (z: number): void => {
+			const f: Face | null = c.crossSection([0, 0, z], norm);
+			if (f) ret += f.countGridPoints(s[0], s[1], resolution);
+		};
+
+		if (k0 <= 0 && 0 <= k1) {
+			const f: Face | null = c.crossSection([0, 0, s[2]], norm);
+			if (f) ret += f.countGridPoints(s[0], s[1], resolution);
 		}
-		for (let inc: number = 1; ; ++inc) {
-			const f: Face | null = c.crossSection([0, 0, s[2] + inc * resolution], norm);
-			if (!f) break;
-			const pc: number = f.countGridPoints(s[0], s[1], resolution);
-			if (!pc) break;
-			ret += pc;
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const f: Face | null = c.crossSection([0, 0, s[2] - inc * resolution], norm);
-			if (!f) break;
-			const pc: number = f.countGridPoints(s[0], s[1], resolution);
-			if (!pc) break;
-			ret += pc;
+		for (let inc: number = 1; inc <= max; ++inc) {
+			if (k0 <= inc && inc <= k1) {
+				const z: number = s[2] + inc * resolution;
+				const f: Face | null = c.crossSection([0, 0, z], norm);
+				if (f) ret += f.countGridPoints(s[0], s[1], resolution);
+			}
+			if (k0 <= -inc && -inc <= k1) {
+				const z: number = s[2] - inc * resolution;
+				const f: Face | null = c.crossSection([0, 0, z], norm);
+				if (f) ret += f.countGridPoints(s[0], s[1], resolution);
+			}
 		}
 		return ret;
 	}
@@ -202,24 +210,41 @@ export class Voronoi {
 		const s   : Vertex = this.#sites[index];
 		const c   : Mesh   = this.#cells[index];
 
-		const f: Face | null = c.crossSection([0, 0, s[2]], norm);
-		if (f) {
-			ret.push(...f.getGridPoints(s[0], s[1], resolution));
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const size: number = ret.length;
+		const range: [number, number] | null = Voronoi.#getZIndexRange(c, s[2], resolution);
+		if (range === null) return ret;
 
-			const f0: Face | null = c.crossSection([0, 0, s[2] + inc * resolution], norm);
-			if (f0) {
-				ret.push(...f0.getGridPoints(s[0], s[1], resolution));
+		const [k0, k1] = range;
+		const max: number = Math.max(Math.abs(k0), Math.abs(k1));
+
+		if (k0 <= 0 && 0 <= k1) {
+			const f: Face | null = c.crossSection([0, 0, s[2]], norm);
+			if (f) ret.push(...f.getGridPoints(s[0], s[1], resolution));
+		}
+		for (let inc: number = 1; inc <= max; ++inc) {
+			if (k0 <= inc && inc <= k1) {
+				const z: number = s[2] + inc * resolution;
+				const f: Face | null = c.crossSection([0, 0, z], norm);
+				if (f) ret.push(...f.getGridPoints(s[0], s[1], resolution));
 			}
-			const f1: Face | null = c.crossSection([0, 0, s[2] - inc * resolution], norm);
-			if (f1) {
-				ret.push(...f1.getGridPoints(s[0], s[1], resolution));
+			if (k0 <= -inc && -inc <= k1) {
+				const z: number = s[2] - inc * resolution;
+				const f: Face | null = c.crossSection([0, 0, z], norm);
+				if (f) ret.push(...f.getGridPoints(s[0], s[1], resolution));
 			}
-			if (ret.length === size) break;
 		}
 		return ret;
+	}
+
+	static #getZIndexRange(c: Mesh, cz: number, resolution: number): [number, number] | null {
+		const range: [number, number] | null = c.getZRange();
+		if (range === null) return null;
+
+		const [z0, z1] = range;
+
+		const k0: number = Math.floor((z0 - cz) / resolution) + 1;
+		const k1: number = Math.ceil ((z1 - cz) / resolution) - 1;
+
+		return k0 <= k1 ? [k0, k1] : null;
 	}
 
 }

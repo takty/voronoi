@@ -74,6 +74,19 @@ export class Mesh {
 	constructor() {
 	}
 
+	getZRange(): [number, number] | null {
+		if (this.#vs.length === 0) return null;
+
+		let z0: number = Number.POSITIVE_INFINITY;
+		let z1: number = Number.NEGATIVE_INFINITY;
+
+		for (const v of this.#vs) {
+			z0 = Math.min(z0, v[2]);
+			z1 = Math.max(z1, v[2]);
+		}
+		return [z0, z1];
+	}
+
 	/**
 	 * Splits the mesh along a specified plane and generates new faces and vertices on one side of the plane.
 	 *

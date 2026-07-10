@@ -88,18 +88,22 @@ export class Face {
 	countGridPoints(cx: number, cy: number, resolution: number): number {
 		let ret: number = 0;
 
-		const pc: number = this.#countInternalPoints(cx, cy, resolution);
-		ret += pc;
+		const range: [number, number] | null = this.#getYIndexRange(cy, resolution);
+		if (range === null) return ret;
 
-		for (let inc: number = 1; ; ++inc) {
-			const pc: number = this.#countInternalPoints(cx, cy + inc * resolution, resolution);
-			if (0 === pc) break;
-			ret += pc;
+		const [k0, k1] = range;
+		const max: number = Math.max(Math.abs(k0), Math.abs(k1));
+
+		if (k0 <= 0 && 0 <= k1) {
+			ret += this.#countInternalPoints(cx, cy, resolution);
 		}
-		for (let inc: number = 1; ; ++inc) {
-			const pc: number = this.#countInternalPoints(cx, cy - inc * resolution, resolution);
-			if (0 === pc) break;
-			ret += pc;
+		for (let inc: number = 1; inc <= max; ++inc) {
+			if (k0 <= inc && inc <= k1) {
+				ret += this.#countInternalPoints(cx, cy + inc * resolution, resolution);
+			}
+			if (k0 <= -inc && -inc <= k1) {
+				ret += this.#countInternalPoints(cx, cy - inc * resolution, resolution);
+			}
 		}
 		return ret;
 	}
@@ -138,26 +142,51 @@ export class Face {
 		const ret: [number, number, number][] = [];
 		const z: number = this.#firstEdge.getBegin()[2];
 
-		const ps: number[] = this.#getInternalPoints(cx, cy, resolution);
-		for (const x of ps) {
-			ret.push([x, cy, z]);
-		}
-		for (let inc: number = 1; ; ++inc) {
-			const size: number = ret.length;
+		const range: [number, number] | null = this.#getYIndexRange(cy, resolution);
+		if (range === null) return ret;
 
-			const y0: number = cy + inc * resolution;
-			const ps0: number[] = this.#getInternalPoints(cx, y0, resolution);
-			for (const x of ps0) {
-				ret.push([x, y0, z]);
+		const [k0, k1] = range;
+		const max: number = Math.max(Math.abs(k0), Math.abs(k1));
+
+		if (k0 <= 0 && 0 <= k1) {
+			for (const x of this.#getInternalPoints(cx, cy, resolution)) {
+				ret.push([x, cy, z]);
 			}
-			const y1: number = cy - inc * resolution;
-			const ps1: number[] = this.#getInternalPoints(cx, y1, resolution);
-			for (const x of ps1) {
-				ret.push([x, y1, z]);
+		}
+		for (let inc: number = 1; inc <= max; ++inc) {
+			if (k0 <= inc && inc <= k1) {
+				const y: number = cy + inc * resolution;
+				for (const x of this.#getInternalPoints(cx, y, resolution)) {
+					ret.push([x, y, z]);
+				}
 			}
-			if (ret.length === size) break;
+			if (k0 <= -inc && -inc <= k1) {
+				const y: number = cy - inc * resolution;
+				for (const x of this.#getInternalPoints(cx, y, resolution)) {
+					ret.push([x, y, z]);
+				}
+			}
 		}
 		return ret;
+	}
+
+	#getYIndexRange(cy: number, resolution: number): [number, number] | null {
+		let minY: number = Number.POSITIVE_INFINITY;
+		let maxY: number = Number.NEGATIVE_INFINITY;
+
+		for (let e: Edge = this.#firstEdge; ; e = e.next as Edge) {
+			const y: number = e.getBegin()[1];
+			minY = Math.min(minY, y);
+			maxY = Math.max(maxY, y);
+
+			if (e.next === this.#firstEdge) {
+				break;
+			}
+		}
+		const k0: number = Math.ceil((minY - cy) / resolution);
+		const k1: number = Math.ceil((maxY - cy) / resolution) - 1;
+
+		return k0 <= k1 ? [k0, k1] : null;
 	}
 
 	/**
