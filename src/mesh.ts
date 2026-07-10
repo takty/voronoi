@@ -189,8 +189,11 @@ export class Mesh {
 				break;
 			}
 			let next: Edge = e.next.pair.next;
-			while (next && !unpairedEs.includes(next)) {
-				next = (next.pair as Edge).next as Edge;
+			while (!unpairedEs.includes(next)) {
+				if (next.pair === null || next.pair.next === null) {
+					return [];
+				}
+				next = next.pair.next;
 			}
 			const ne: Edge = new Edge(next.getBegin());
 			faceEs.push(ne);

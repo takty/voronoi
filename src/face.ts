@@ -114,7 +114,7 @@ export class Face {
 	 */
 	#countInternalPoints(cx: number, cy: number, resolution: number): number {
 		const ips: number[] = this.#getIntersectionPoints(cy);
-		if (ips.length < 2) return 0;
+		if (ips.length !== 2) return 0;
 
 		let [x0, x1] = ips;
 		if (x0 > x1) {
@@ -170,7 +170,7 @@ export class Face {
 	 */
 	#getInternalPoints(cx: number, cy: number, resolution: number): number[] {
 		const ips: number[] = this.#getIntersectionPoints(cy);
-		if (ips.length < 2) return [];
+		if (ips.length !== 2) return [];
 
 		let [x0, x1] = ips;
 		if (x0 > x1) {
