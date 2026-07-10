@@ -71,9 +71,17 @@ export class Mesh {
 		}
 	}
 
+	/**
+	 * Creates an empty mesh instance.
+	 */
 	constructor() {
 	}
 
+	/**
+	 * Returns the minimum and maximum z-coordinates in the mesh.
+	 *
+	 * @returns A tuple [minZ, maxZ], or null if the mesh has no vertices.
+	 */
 	getZRange(): [number, number] | null {
 		if (this.#vs.length === 0) return null;
 
@@ -194,6 +202,12 @@ export class Mesh {
 		return null;
 	}
 
+	/**
+	 * Builds a closing face by tracing and pairing unpaired boundary edges.
+	 *
+	 * @param unpairedEs - Boundary edges that currently have no pair.
+	 * @returns A reversed edge loop for the closing face, or an empty array if a loop cannot be formed.
+	 */
 	static #createFaceEdgesFromUnpairedEdges(unpairedEs: Edge[]): Edge[] {
 		const faceEs: Edge[] = [];
 		let e: Edge = unpairedEs[0];

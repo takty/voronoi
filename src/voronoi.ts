@@ -230,6 +230,14 @@ export class Voronoi {
 		return ret;
 	}
 
+	/**
+	 * Computes the inclusive z-index range for slicing a cell with horizontal planes.
+	 *
+	 * @param c - The cell mesh.
+	 * @param cz - The z-coordinate used as the grid origin.
+	 * @param resolution - The spacing between slices.
+	 * @returns The inclusive index range [k0, k1], or null when no slice intersects the cell.
+	 */
 	static #getZIndexRange(c: Mesh, cz: number, resolution: number): [number, number] | null {
 		const range: [number, number] | null = c.getZRange();
 		if (range === null) return null;

@@ -2,7 +2,7 @@
  * Edge
  *
  * @author Takuto Yanagida
- * @version 2024-11-19
+ * @version 2026-07-10
  */
 
 import { Vertex } from './vertex';
@@ -35,6 +35,11 @@ export class Edge {
 		this.#bgn = v;
 	}
 
+	/**
+	 * Sets the next edge in the face loop and derives this edge's end vertex.
+	 *
+	 * @param e - The edge that follows this edge.
+	 */
 	setNext(e: Edge): void {
 		this.next = e;
 		this.#end = e.#bgn;

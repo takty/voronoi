@@ -170,6 +170,13 @@ export class Face {
 		return ret;
 	}
 
+	/**
+	 * Computes the inclusive index range of horizontal grid lines that overlap this face.
+	 *
+	 * @param cy - The center y-coordinate used as the grid origin.
+	 * @param resolution - The spacing between adjacent grid lines.
+	 * @returns The inclusive index range [k0, k1], or null when no grid line intersects the face.
+	 */
 	#getYIndexRange(cy: number, resolution: number): [number, number] | null {
 		let minY: number = Number.POSITIVE_INFINITY;
 		let maxY: number = Number.NEGATIVE_INFINITY;
