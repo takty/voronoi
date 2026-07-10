@@ -169,11 +169,6 @@ export class Voronoi {
 		const [k0, k1] = range;
 		const max: number = Math.max(Math.abs(k0), Math.abs(k1));
 
-		const countSection = (z: number): void => {
-			const f: Face | null = c.crossSection([0, 0, z], norm);
-			if (f) ret += f.countGridPoints(s[0], s[1], resolution);
-		};
-
 		if (k0 <= 0 && 0 <= k1) {
 			const f: Face | null = c.crossSection([0, 0, s[2]], norm);
 			if (f) ret += f.countGridPoints(s[0], s[1], resolution);
